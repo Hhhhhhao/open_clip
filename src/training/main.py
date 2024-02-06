@@ -37,6 +37,8 @@ from training.scheduler import cosine_lr, const_lr, const_lr_cooldown
 from training.train import train_one_epoch, evaluate
 from training.file_utils import pt_load, check_exists, start_sync_process, remote_sync
 
+# Import Habana Torch Library
+import habana_frameworks.torch.core as htcore
 
 LATEST_CHECKPOINT_NAME = "epoch_latest.pt"
 
@@ -296,10 +298,17 @@ def main(args):
         if args.ddp_static_graph:
             # this doesn't exist in older PyTorch, arg only added if enabled
             ddp_args['static_graph'] = True
-        model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[device], **ddp_args)
+        
+        if args.hanaba:
+            model = torch.nn.parallel.DistributedDataParallel(model)
+        else:
+            model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[device], **ddp_args)
     
         if args.distill:
-            dist_model = torch.nn.parallel.DistributedDataParallel(dist_model, device_ids=[device], **ddp_args)
+            if args.hanaba:
+                dist_model = torch.nn.parallel.DistributedDataParallel(model)
+            else:
+                dist_model = torch.nn.parallel.DistributedDataParallel(dist_model, device_ids=[device], **ddp_args)
 
     # create optimizer and scaler
     optimizer = None

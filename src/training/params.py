@@ -188,8 +188,8 @@ def parse_args(args):
     )
     parser.add_argument(
         "--precision",
-        choices=["amp", "amp_bf16", "amp_bfloat16", "bf16", "fp16", "pure_bf16", "pure_fp16", "fp32"],
-        default="amp",
+        choices=["amp", "amp_bf16", "amp_bfloat16", "bf16", "fp16", "pure_bf16", "pure_fp16", "fp32", "hanaba_bfloat16", "hanaba_bf16"],
+        default="fp32",
         help="Floating point precision."
     )
     parser.add_argument(
@@ -348,6 +348,12 @@ def parse_args(args):
     )
     parser.add_argument(
         "--horovod",
+        default=False,
+        action="store_true",
+        help="Use horovod for distributed training."
+    )
+    parser.add_argument(
+        "--hanaba",
         default=False,
         action="store_true",
         help="Use horovod for distributed training."

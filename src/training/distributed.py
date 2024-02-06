@@ -77,6 +77,21 @@ def init_distributed_device(args):
         os.environ['LOCAL_RANK'] = str(args.local_rank)
         os.environ['RANK'] = str(args.rank)
         os.environ['WORLD_SIZE'] = str(args.world_size)
+    
+    elif args.hanaba:
+        
+        print("hanaba initialize")
+        # torchrun
+        import habana_frameworks.torch.distributed.hccl as hccl
+        torch.distributed.init_process_group(backend='hccl')
+        world_size, rank, local_rank = hccl.initialize_distributed_hpu()
+        args.distributed = True 
+        args.local_rank = local_rank 
+        args.rank = rank 
+        args.world_size = world_size
+        # args.dist_backend = 'hccl'
+        
+    
     elif is_using_distributed():
         if 'SLURM_PROCID' in os.environ:
             # DDP via SLURM
@@ -107,6 +122,8 @@ def init_distributed_device(args):
         else:
             device = 'cuda:0'
         torch.cuda.set_device(device)
+    elif args.hanaba:
+        device = 'hpu'
     else:
         device = 'cpu'
     args.device = device

@@ -19,6 +19,8 @@ from .distributed import is_master
 from .zero_shot import zero_shot_eval
 from .precision import get_autocast
 
+import habana_frameworks.torch.core as htcore
+
 
 class AverageMeter(object):
     """Computes and stores the average and current value"""
@@ -110,6 +112,7 @@ def train_one_epoch(model, data, loss, epoch, optimizer, scaler, scheduler, dist
                 losses["loss"] = total_loss
 
             backward(total_loss, scaler)
+            htcore.mark_step()
         else:
             # First, cache the features without any gradient tracking.
             with torch.no_grad():
@@ -160,6 +163,7 @@ def train_one_epoch(model, data, loss, epoch, optimizer, scaler, scheduler, dist
                     losses["loss"] = total_loss
 
                 backward(total_loss, scaler)
+                htcore.mark_step()
 
         if scaler is not None:
             if args.horovod:
@@ -169,16 +173,19 @@ def train_one_epoch(model, data, loss, epoch, optimizer, scaler, scheduler, dist
                     torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip_norm, norm_type=2.0)
                 with optimizer.skip_synchronize():
                     scaler.step(optimizer)
+                    htcore.mark_step()
             else:
                 if args.grad_clip_norm is not None:
                     scaler.unscale_(optimizer)
                     torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip_norm, norm_type=2.0)
                 scaler.step(optimizer)
+                htcore.mark_step()
             scaler.update()
         else:
             if args.grad_clip_norm is not None:
                 torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip_norm, norm_type=2.0)
             optimizer.step()
+            htcore.mark_step()
 
         # reset gradient accum, if enabled
         if args.accum_freq > 1:
@@ -279,6 +286,7 @@ def evaluate(model, data, epoch, args, tb_writer=None, tokenizer=None):
 
                 with autocast():
                     model_out = model(images, texts)
+                    htcore.mark_step()
                     image_features = model_out["image_features"]
                     text_features = model_out["text_features"]
                     logit_scale = model_out["logit_scale"]

@@ -7,6 +7,8 @@ from open_clip import get_input_dtype, get_tokenizer, build_zero_shot_classifier
     IMAGENET_CLASSNAMES, OPENAI_IMAGENET_TEMPLATES
 from .precision import get_autocast
 
+import habana_frameworks.torch.core as htcore
+
 
 def accuracy(output, target, topk=(1,)):
     pred = output.topk(max(topk), 1, True, True)[1].t()
@@ -26,15 +28,18 @@ def run(model, classifier, dataloader, args):
 
             with autocast():
                 # predict
-                output = model(image=images)
-                image_features = output['image_features'] if isinstance(output, dict) else output[0]
+                # output = model(image=images)
+                # image_features = output['image_features'] if isinstance(output, dict) else output[0]
+                image_features = model.encode_image(images, normalize=True)
                 logits = 100. * image_features @ classifier
+
 
             # measure accuracy
             acc1, acc5 = accuracy(logits, target, topk=(1, 5))
             top1 += acc1
             top5 += acc5
             n += images.size(0)
+            htcore.mark_step()
 
     top1 = (top1 / n)
     top5 = (top5 / n)
